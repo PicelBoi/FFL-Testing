@@ -143,7 +143,7 @@ private:
                     break;
                 case SHADER_TYPE_BLINNRFL:
                     // miitomo shader needs wii u shader to draw mask
-                    mpShaders[type] = new ShaderRFLCFL();
+                    mpShaders[type] = new Shader();
                     break;
             }
             mpShaders[type]->initialize();
