@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<head>
+    <!--My own web panel for FFL-Testing.-->
+    <!--A bunch of code was straight up taken from ariankordi's version to make this one.-->
+    <title>Face Library Prints Channel (Haruka PicelBoi Host)</title>
+    <meta name="description" content="This site renders that one avatar from a variety of systems made by that one Japanese video game company using it's own libraries.">
+    <link rel="stylesheet" href="pb.css">
+</head>
+<body>
+    <div id="MainWin">
+    <!-- Top Introduction -->
+    <h1>Face Library Prints Channel</h1>
+    <h2>credit to ariankordi</h2>
+    <h3>(render like a pro!)</h3>
+    <hr>
+    <!-- Input Stage -->
+    <h2>Input</h2>
+    <!--Your average form-->
+    <form action="/miis/image.png" method="get">
+        <h3>Step 1: Choose input type.</h3>
+        <label for="input-type">Input Type:</label>
+        <select id="input-type">
+            <option value="nnid">NNID</option>
+            <option value="pnid">PNID</option>
+            <option value="data">File/Raw Data</option>
+            <option value="qrcode">Scan QR Code</option>
+            <option value="nfp">Scan Near-Field-Communication Device</option>
+            <option value="cmoc">Import from CMOC</option>
+            <option value="ktomo-player-id">Import from kaeru:tomo</option>
+        </select>
+        <hr>
+        <h3>Step 2: Fill in required fields.</h3>
+        <h4 id="face-name" style="font-weight:bold">Loaded Face: </h4> 
+        <!--Errors.-->
+        <h4 id="data-error-size-mismatch" style="font-weight: bold; color: red;">ERROR: Unknown type of Face Library data. Check the supported types list. Size: <span>192</span></h4>
+        <h4 id="data-error-invalid-checksum" style="font-weight: bold; color: red;">ERROR: This data has an invalid CRC16 checksum.</h4>
+        <h4 id="data-error-size-0" style="font-weight: bold; color: red;">ERROR: The data is empty.</h4>
+        <h4 id="data-error-size-540" style="font-weight: bold; color: red;">ERROR: This data is 540 bytes long, and may be an amiibo file. Choose the "amiibo Data" option and try again.</h4>
+        <h4 id="data-error-size-8" style="font-weight: bold; color: orangered;">WARNING: This seems like a MStudio or NNID. You will have to continue to use <a target="_blank" href="https://pf2m.com/tools/mii/">pf2m.com/tools/mii</a> if you use NNID, or if this is a MStudio Face, you will need to get its data instead of its ID. Use the guide from <a href="https://limes.pink/spinmii">SpinMii</a>: navigate here and click on the question mark on the top right corner. Then input "data-params" into the Raw Data input box.</h4>
+        <div class="hide-iframe-mode">Choose AFL for MStudio/MTomo, FFL for Cafe, and NX for Switch.</div>
+        <hr class="dotted">
+        <div id="data-group">
+            <h3>File/Raw Data Loader</h3>
+            <label for="file">Please upload a supported file (FFSD, CFSD, RCD, MAE, etc):</label>
+            <input type="file" id="file">
+            <input type="hidden" id="file-data" data-name-disabled="data">
+            <br>
+            <h3>or</h3>
+            <label for="data">Input raw data:</label>
+            <input id="data" type="text" placeholder="Add raw data.">
+            <h5>(psst... need an example? here: AwAAMInnlRRqp1Pi0JDesCGFth4BPwAA9BnTMLsw6zDcMKQwAAAAAAAAAAAAAGRHEiAzAIJkhBgHAoYSIRQXYA0AACmCUaA0UABpAGMAZQBsAEIAbwBpAAAAAAAAAIAv)</h5>
+        </div>
+        <div id="qrcode-group">
+            <h3>QR Code Loader</h3>
+            <label for="start-camera" id="start-camera-label">Camera Scan: Allow access to camera and press 'Start Camera' to begin:</label>
+            <label id="stop-camera-label" for="stop-camera">Camera Scan: To stop scanning, press 'Stop Camera':</label>
+            <br>
+            <button id="start-camera" type="button">Start Camera</button>
+            <button id="stop-camera" type="button">Stop Camera</button>
+            <br>
+            <div id="qr-camera-group">
+                <label for="cam-list">Select camera: </label>
+                <select id="cam-list">
+                    <option value="environment" selected="">Back Camera (default)</option>
+                    <option value="user">User/Front Facing Camera</option>
+                </select>
+                <video id="qr-video" style="max-width: 100%; height: 0px;"></video>
+                <!--QR Code status-->
+                <div id="qr-status-ready" style="font-weight: bold;">Status: Ready to scan.</div>
+                <div id="qr-status-scanning" style="font-weight: bold; color: blue;">Scanning... You can point your camera at a QR code.</div>
+                <div id="qr-status-waiting" style="font-weight: bold; color: orange;">Waiting for QrScanner.scanImage() 10s timeout...</div>
+                <div id="qr-status-no-qr" style="font-weight: bold; color: red;">No QR code found.</div>
+                <div id="qr-status-error" style="font-weight: bold; color: red;">Error: <span></span></div>
+                <div id="qr-status-no-face" style="font-weight: bold; color: red;">This QR Code does not contain a Face.<span class="small"></span></div>
+                <div id="qr-status-no-camera" style="font-weight: bold; color: red;">No camera found, or permissions were not granted.</div>
+            </div>
+            <h3>or</h3>
+            <label for="qr-file">Upload a valid QR code image from your device.</label>
+            <input type="file" id="qr-file" accept="image/*">
+            <input type="hidden" name="data" id="qrcode" value="AwEAMInnlRRqp1Pi0JDesCGFth4BPwAA9BnTMLsw6zDcMKQwAAAAAAAAAAAAAGRHEiAzAIJkhBgHAoYSIRQXYA0AACmCUaA0UABpAGMAZQBsAEIAbwBpAAAAAAAAAFyi">
+        </div>
+        <div id="nnid-group">
+            <h3>NNID Loader</h3>
+            <!-- you may want to add labels to differentiate in the case of no js -->
+            <input id="nnid" name="nnid" class="long-field" type="text" placeholder="NNID created on a Cafe or Citra based device." value="PicelBoi" minlength="1" maxlength="16" pattern="^[0-9a-zA-Z\-_.]+$" required="" data-action="/mii_data/">
+            <!-- tbd you should add or check minlength
+                   it was temporarily removed bc its annoying to see
+                  red before you are finished typing -->
+            <br>
+            <input type="hidden" name="data" id="nnid-data" value="AwAAQKBBOMSghAAA27iHMb5gKyoqQgAAWS1KAGEAcwBtAGkAbgBlAAAAAAAAABw3EhB7ASFuQxwNZMcYAAgegg0AMEGzW4JtAABvAHMAaQBnAG8AbgBhAGwAAAAAAJA6">
+            <button id="random-nnid" type="button" data-action="/mii_data_random">Random NNID</button>
+            <h4 style="margin: 0;">This will only show Faces from NNIDs as they were prior to April 8th, 2024.</h4>
+        </div>
+        <div id="pnid-group">
+            <h3>PNID Loader</h3>
+            <!-- you may want to add labels to differentiate in the case of no js -->
+            <input id="pnid" name="nnid" class="long-field" type="text" placeholder="PNID created on a Cafe or Citra based device OR a device with web support." value="PicelBoi" minlength="1" maxlength="16" pattern="^[0-9a-zA-Z\-_.]+$" required="" data-action="/mii_data/">
+            <!-- tbd you should add or check minlength
+                   it was temporarily removed bc its annoying to see
+                  red before you are finished typing -->
+            <br>
+            <input name="api_id" type="hidden" value="1">
+            <br>
+            <input type="hidden" name="data" id="pnid-data">
+        </div>
+        <div id="cmoc-group">
+            <h3>CMOC Loader</h3>
+            <input id="cmoc" class="long-field" type="text" placeholder="Check Mii Out Channel code format: 1234-5678-1234" maxlength="15" pattern="^\d{4}-\d{4}-\d{4}$" required=""  value="" data-action="/cmoc_lookup/">
+            <input type="hidden" name="data" id="cmoc-data">
+            <h4>This input takes codes from the <a target="_blank" href="https://miicontest.wiilink.ca/">WiiLink CMOC site.</a> Please note that we are not affiliated with WiiLink.</h4>
+        </div>
+        <div id="nfp-group">
+            <h3>NFP/NFC Loader</h3>
+            <label for="nfp-file"><b>Provide a 540/532 byte file of a preferably encrypted amiibo containing a Mii. This supports Switch Miis!</b></label><br>
+            <input type="file" id="nfp-file" required=""">
+            <input type="hidden" name="data" id="nfp-file-data">
+            <!-- while data is put in the url, data-REAL is used by the conversion routine -->
+            <input type="hidden" name="data-REAL" id="nfp-file-data-with-ext">
+
+            <div id="nfp-figure-loaded" style="font-weight: bold; color: green; display: none;">Figure Name: <span></span></div>
+
+            <div id="nfp-error" style="font-weight: bold; color: red; display: none;">Cannot read your file: <span></span></div>
+        </div>
+        <div id="ktomo-player-id-group">
+            <h3>kaeru:tomo Friend Code Loader</h3>
+            <input id="ktomo-player-id" class="long-field" type="text" placeholder="Paste your Kaerutomo friend invite link here." required="" value="" data-action="/miitomo_get_player_data/">
+            <input type="hidden" name="data" id="ktomo-data">
+            <h4>This input takes friend codes from the <a target="_blank" href="https://kaeru.world/projects/kaerutomo">kaeru:tomo service.</a> Please note that we are not affiliated with Kaeru Team.</h4>
+            <h4>Select a Face (required!)</h4>
+            <select id="ktomo-mii-list"></select>
+        </div>
+
+        <hr class="dotted">
+        <h2>Input Options</h2>
+        <label for="shaderType">Shader/lighting type:</label>
+        <select name="shaderType" id="shaderType" data-default-value="0" data-save="">
+            <option value="0" selected="">FFL</option>
+            <option value="1">NX</option>
+            <option value="2">AFL</option>
+            <option value="3">RFL/CFL</option>
+        </select><br class="hide-iframe-mode">
+        <label for="type" class="hide-iframe-mode">View type:</label>
+        <select name="type" id="type" class="hide-iframe-mode">
+            <option value="face">Portrait</option>
+            <option value="face_only">Head Only</option>
+            <option value="fflmakeicon">Head Only Alt</option>
+            <option value="all_body">Whole Body</option>
+            <option value="variableiconbody">Switch Portrait</option>
+        </select><br class="hide-iframe-mode">
+        <label for="expression" class="hide-iframe-mode">Expression:</label>
+        <select name="expression" id="expression" class="hide-iframe-mode" data-default-value="normal">
+            <option value="normal">Normal</option>
+            <option value="smile">Smile</option>
+            <option value="anger">Anger</option>
+            <option value="sorrow">Sorrow</option>
+            <option value="surprise">Surprise</option>
+            <option value="blink">Blink</option>
+            <option value="normal_open_mouth">Normal (open mouth)</option>
+            <option value="smile_open_mouth">Smile (open mouth)</option>
+            <option value="anger_open_mouth">Anger (open mouth)</option>
+            <option value="surprise_open_mouth">Surprise (open mouth)</option>
+            <option value="sorrow_open_mouth">Sorrow (open mouth)</option>
+            <option value="blink_open_mouth">Blink (open mouth)</option>
+            <option value="wink_left">Wink (left eye open)</option>
+            <option value="wink_right">Wink (right eye open)</option>
+            <option value="wink_left_open_mouth">Wink (left eye and mouth open)</option>
+            <option value="wink_right_open_mouth">Wink (right eye and mouth open)</option>
+            <option value="like_wink_left">Wink (left eye open and smiling)</option>
+            <option value="like_wink_right">Wink (right eye open and smiling)</option>
+            <option value="frustrated">Frustrated</option>
+            <option value="pleading">Pleading</option>
+            <option value="19">Bored</option>
+            <option value="20">Bored open mouth (MTomo)</option>
+            <option value="21">Sigh mouth straight (MTomo)</option>
+            <option value="22">Sigh (MTomo)</option>
+            <option value="23">Disgusted mouth straight (MTomo)</option>
+            <option value="24">Disgusted (MTomo)</option>
+            <option value="25">Love (MTomo)</option>
+            <option value="26">Love mouth open (MTomo)</option>
+            <option value="27">Determined mouth straight (MTomo)</option>
+            <option value="28">Determined (MTomo)</option>
+            <option value="29">Cry mouth straight (MTomo)</option>
+            <option value="30">Cry (MTomo)</option>
+            <option value="31">Big smile mouth straight (MTomo)</option>
+            <option value="32">Big smile (MTomo)</option>
+            <option value="33">Cheeky (MTomo)</option>
+            <!-- <option value="34">Cheeky duplicate (MTomo)</option> -->
+            <option value="35">Resolve eyes funny mouth (MTomo)</option>
+            <option value="36">Resolve eyes funny mouth open (MTomo)</option>
+            <option value="37">Smug (MTomo)</option>
+            <option value="38">Smug mouth open (MTomo)</option>
+            <option value="39">Resolve (MTomo)</option>
+            <option value="40">Resolve mouth open (MTomo)</option>
+            <option value="41">Unbelievable (MTomo)</option>
+            <!-- <option value="42">Unbelievable duplicate (MTomo)</option> -->
+            <option value="43">Cunning (MTomo)</option>
+            <!-- <option value="44">Cunning duplicate (MTomo)</option> -->
+            <option value="45">Raspberry (MTomo)</option>
+            <!-- <option value="46">Raspberry duplicate (MTomo)</option> -->
+            <option value="47">Innocent (MTomo)</option>
+            <!-- <option value="48">Innocent duplicate (MTomo)</option> -->
+            <option value="49">Cat (MTomo)</option>
+            <!-- <option value="50">Cat duplicate (MTomo)</option> -->
+            <option value="51">Dog (MTomo)</option>
+            <!-- <option value="52">Dog duplicate (MTomo)</option> -->
+            <option value="53">Tasty (MTomo)</option>
+            <!-- <option value="54">Tasty duplicate (MTomo)</option> -->
+            <option value="55">Money mouth straight (MTomo)</option>
+            <option value="56">Money (MTomo)</option>
+            <option value="57">Confused mouth straight (MTomo)</option>
+            <option value="58">Confused (MTomo)</option>
+            <option value="59">Cheerful mouth straight (MTomo)</option>
+            <option value="60">Cheerful (MTomo)</option>
+            <!-- <option value="61">Normal duplicate, maybe blank? (MTomo)</option> -->
+            <!-- <option value="62">Normal duplicate, maybe blank? duplicate (MTomo)</option> -->
+            <option value="63">Grumble mouth straight (MTomo)</option>
+            <option value="64">Grumble (MTomo)</option>
+            <option value="65">Moved mouth straight (MTomo)</option>
+            <option value="66">Moved (aka pleading face) (MTomo)</option>
+            <option value="67">Singing mouth small (MTomo)</option>
+            <option value="68">Singing (MTomo)</option>
+            <option value="69">Stunned (MTomo)</option>
+        </select><br class="hide-iframe-mode">
+        <label class="hide-iframe-mode" for="resolution-slider">Resolution:</label>
+        <input class="hide-iframe-mode" id="resolution-slider" type="range" min="96" max="1200" step="16" value="270">
+        <input class="short-number hide-iframe-mode" name="width" id="width" type="number" step="2" value="270" data-save="" max="1200">
+        <label for="width" class="hide-iframe-mode">px</label>
+        <br class="hide-iframe-mode">
+        <div>
+            <label for="bgColor">Background color:</label>
+            <input name="bgColor" id="bgColor" type="color" value="#ffffff">
+            <label for="transparent-checkbox">Transparent?</label>
+            <input id="transparent-checkbox" type="checkbox" checked="">
+        </div>
+
+
+        <!--
+        <label>Background color opacity:<input name="bgColorOpacity" type="range" min="0" max="255" value="0">
+        <span class="small">0</span>
+        </label>
+        <br>
+        -->
+        <label for="clothesColor">Clothes color:</label>
+        <select id="clothesColor" name="clothesColor" data-default-value="default">
+            <option value="default">Default</option>
+            <option value="red">Red</option>
+            <option value="orange">Orange</option>
+            <option value="yellow">Yellow</option>
+            <option value="yellowgreen">Light green</option>
+            <option value="green">Dark green</option>
+            <option value="blue">Dark blue</option>
+            <option value="skyblue">Light blue</option>
+            <option value="pink">Pink</option>
+            <option value="purple">Purple</option>
+            <option value="brown">Brown</option>
+            <option value="white">White</option>
+            <option value="black">Black</option>
+        </select>
+        <br>
+        <label for="pantsColor">Pants color: </label>
+        <select id="pantsColor" name="pantsColor" data-save="" data-default-value="red">
+            <option value="gray">Gray</option>
+            <option value="red" selected="">Red</option>
+            <option value="blue">Dark blue</option>
+            <option value="gold">Gold</option>
+        </select>
+
+        <div id="pants-colors-with-switch-shader-inaccurate" style="color: red; display: none;" class="small hide-iframe-mode">Note that red and blue pants don't work on the Switch shader thanks to the stupid hardcoded sssColor and specularColor tables that I don't know how to recalculate</div>
+
+        <details id="rotation-controls-details" data-save="" data-default-value="0">
+            <summary>Rotation controls</summary>
+            <div style="font-size: 14px;">
+                <label for="characterXRotate">Character X rotation:</label>
+                <input id="characterXRotate-slider" type="range" min="0" max="360" value="0" data-default-value="0">
+                <input class="short-number" name="characterXRotate" id="characterXRotate" type="number" value="0" data-default-value="0">
+                <br>
+                <label for="characterYRotate">Character Y rotation:</label>
+                <input id="characterYRotate-slider" type="range" min="0" max="360" value="0">
+                <input class="short-number" name="characterYRotate" id="characterYRotate" type="number" value="0" data-default-value="0">
+                <br>
+                <label for="characterZRotate">Character Z rotation:</label>
+                <input id="characterZRotate-slider" type="range" min="0" max="360" value="0">
+                <input class="short-number" name="characterZRotate" id="characterZRotate" type="number" value="0" data-default-value="0">
+
+                <hr>
+
+                <label for="cameraXRotate">Camera X rotation:</label>
+                <input id="cameraXRotate-slider" type="range" min="0" max="360" value="0" data-default-value="0">
+                <input class="short-number" name="cameraXRotate" id="cameraXRotate" type="number" value="0" data-default-value="0">
+                <br>
+                <label for="cameraYRotate">Camera Y rotation:</label>
+                <input id="cameraYRotate-slider" type="range" min="0" max="360" value="0">
+                <input class="short-number" name="cameraYRotate" id="cameraYRotate" type="number" value="0" data-default-value="0">
+                <br>
+                <label for="cameraZRotate">Camera Z rotation:</label>
+                <input id="cameraZRotate-slider" type="range" min="0" max="360" value="0">
+                <input class="short-number" name="cameraZRotate" id="cameraZRotate" type="number" value="0" data-default-value="0">
+                <details>
+                    <summary>
+                        <h4 style="margin: 0; display: inline;">How are character and camera rotation different?</h4>
+                    </summary>
+                    <div>Subtle differences can be seen when combining axes - but this doesn't combine them the same way as Mii Studio, in X and Z rotation, and more notably in lighting - except in comparison to Mii Studio the lighting is the same currently</div>
+                </details>
+            </div>
+        </details>
+
+        <details class="hide-iframe-mode">
+            <summary>Advanced options</summary>
+
+            <div style="font-size: 13px;">
+
+            <label for="scale">Disable 2x supersampling:</label>
+            <input type="checkbox" name="scale" id="scale" value="1">
+            <div class="smaller" style="margin-bottom: 5px;">Can speed up rendering at high resolutions. Note that scaling is done on the CPU and not GPU at the moment due to trouble I've had with alpha bleeding.</div>
+
+            <label for="resourceType">Resource type:</label>
+            <select name="resourceType" id="resourceType" data-default-value="1">
+                <option value="0">FFL_RESOURCE_TYPE_MIDDLE</option>
+                <option value="1" selected="">FFL_RESOURCE_TYPE_HIGH</option>
+            </select><br>
+            <div class="smaller">You should always use high, but official renders all use middle in case you want to match them. Note that middle does not have new glasses or expressions.</div>
+
+            <div class="smaller">
+            <details>
+                <summary>Not available with the middle resource. Selecting this will override the first expression choice. Click to reveal some slight inaccuracies with these.</summary>
+                <ul class="left-justified-compact">
+                    <li>Some expressions are supposed to set eyebrow colors, though I don't apply that and haven't found where that happens in libcocos2dcpp.so yet.</li>
+                    <li>The orientation of the eyes and the eye positions are flipped from Miitomo.
+                    <ul><li>However... this is actually a flaw with Miitomo in general.</li>
+                    <li>If you test the wink left and wink right expressions in FFL and in Mii Studio, you will see that they are flipped on the Mii Studio API.</li>
+                    <li>... However, I have specifically seen left defined as 12 and right defined as 13, in BOTH nn::mii and FFL enums, so between this and the other Miitomo expressions being flipped, AND the fact that some mask drawing routines were refactored in AFL...</li>
+                    <li>I think it's safe to say that Miitomo is the one that has incorrectly flipped them. And currently I'm not sure how to elegantly deal with this. (set a bit in modelFlag?)</li></ul></li>
+                    <li>The blank face expression is not working. I'm not sure how they do that, and I kind of inelegantly handle the case for cat/dog expressions removing the nose... bleh.</li>
+                    <li>Finally, I don't have a great way to verify that these are pixel perfect (especiallly the ones not choosable by the user), I'm just comparing by eye in the Miifoto editor, so...</li>
+                </ul>
+            </details></div>
+            <label for="modelType">Head model type:</label>
+            <select name="modelType" id="modelType" data-default-value="normal">
+                <option value="normal" selected="">FFL_MODEL_TYPE_NORMAL</option>
+                <option value="hat">FFL_MODEL_TYPE_HAT</option>
+                <option value="face_only">FFL_MODEL_TYPE_FACE_ONLY</option>
+            </select>
+            <label style="display: inline-block;" for="flattenNose">Flatten nose:</label>
+            <input type="checkbox" id="flattenNose" name="flattenNose" value="1" data-default-value="0">
+            <div class="smaller">Not meant for icons, but in modeling or games. Optimized for e.g. hats, helmets (face only). Best combined with "partsTransform" in the JSON of an exported glTF.</div>
+
+            <label for="drawStageMode">Draw stage mode:</label>
+            <select name="drawStageMode" id="drawStageMode" data-default-value="all">
+                <option value="all" selected="">All</option>
+                <option value="opa_only">DrawOpa only</option>
+                <option value="xlu_only">DrawXlu only</option>
+                <option value="mask_only">Mask only</option>
+            </select><br>
+            <div class="smaller">Opa is the head without glasses or a face, Xlu is the face texture and glasses, and mask only is just the face texture. Uses for this are niche.</div>
+
+
+            <label for="lightEnable">Disable lighting:</label>
+            <input type="checkbox" name="lightEnable" id="lightEnable" value="0" data-default-value="0">
+            <div class="smaller">Only useful if you want to make a Mii Stamp, or something.</div>
+
+            <!--
+            <label for="mipmapEnable">Enable mipmapping:</label>
+            <input type="checkbox" name="mipmapEnable" id="mipmapEnable" value="0">
+            <div class="smaller">I don't actually know what this does.</div>
+            -->
+
+            <label for="texResolution">Texture resolution:</label>
+            <input id="texResolutionEnable" type="checkbox">
+            <input class="short-number" name="texResolution" id="texResolution" type="number" step="2" value="270" disabled="">
+            <label for="texResolution">px</label>
+            <div class="smaller">Resolution of the face texture / XluMask. Disable to use default.</div>
+
+            <label for="verifyCRC16">Disable StoreData CRC16 verification:</label>
+            <input type="checkbox" name="verifyCRC16" id="verifyCRC16" value="0" data-default-value="0" data-save="">
+            <div class="smaller">Skips verifying the CRC16 checksum if your data has one.</div>
+
+            <label for="verifyCharInfo">Disable CharInfo verification:</label>
+            <!-- NOTE: in this case, data-default-value on checkboxes means if they are checked -->
+            <input type="checkbox" name="verifyCharInfo" id="verifyCharInfo" value="0" data-default-value="0" data-save="">
+
+            <div class="smaller">Allows you to use any kind of data as Mii data. May still not work.</div>
+
+            </div>
+
+        </details>
+
+        <div id="shader-type-2-inaccurate" style="font-weight: bold; color: orange; font-size: 12px; display: none;" class="hide-iframe-mode">Please note that that this <a href="https://mii-unsecure.ariankordi.net/#accuracy-status">doesn't use the Mii Studio body model</a> at the moment so it will look off from those renders.
+        <br><div style="font-size: 10px; line-height: 120%;">To be fair the Switch option doesn't use the Switch body model either but the difference is smaller there.</div></div>
+<!-- TODO: AUTO-SUBMIT NOT IMPLEMENTED
+        <label for="auto-submit"><b>Auto-Submit:</b></label>
+        <input id="auto-submit" type="checkbox">
+        <br>
+-->
+        <input id="submit" type="submit" data-value="Rendering...">
+    </form>
+    
+    <hr class="hide-iframe-mode">
+    <h3>Outputs</h3>
+    <ul id="results" class="results hide-iframe-mode">
+
+        <li id="result-template" style="display: none;">
+            <div class="image-template entire-width">
+                <!-- js appends the image element in here -->
+            </div>
+            <!-- the last argument controls whether to remove that as a query param -->
+            <button onclick="handleCopyButtonAndUpdateText(event, undefined, 'erri')">
+                <span class="text-copy">Copy image URL</span>
+                <span class="text-copied" style="display: none;">Copied </span>
+            </button>
+            <details ontoggle="handleConvertDetailsToggle(event)">
+            <summary style="font-size: 18px;">
+                Convert <span style="color: plum;"></span>
+            </summary>
+            <div class="hide-iframe-mode">
+                <div style="margin: 5px;">Input data type:<br><code class="input-type no-break-all">Unknown</code></div>
+                <!--
+                <label for>Convert to: </label><select>
+                <option>Default</option>
+                <option></option>
+                </select>
+                -->
+                <ul class="left-justified-compact">
+                <li style="margin: 5px;">
+                    Studio Render
+                    <button onclick="handleCopyButtonAndUpdateText(event)">
+                    <span class="text-copy">Copy image URL</span>
+                    <span class="text-copied" style="display: none;">Copied </span>
+                    </button>
+                    <img class="image-80" alt="Studio Render" data-src="https://studio.mii.nintendo.com/miis/image.png?type=face&amp;width=96&amp;data=">
+                </li>
+                <li>
+
+                <form class="model-download-button" method="POST" style="display: inline;">
+                    <button type="submit">
+                        Download a model of this Mii head in glTF (.glb)
+                    </button>
+                </form>
+                </li>
+                <li>Studio Code: 
+                    (for <a target="_blank" href="https://heyimheroic.github.io/MiiStudioMiiLoader/">Mii Studio Mii Loader</a>)
+                <code class="studio-code code-block"></code></li>
+                <li>
+                    <button class="download-studio-data" onclick="handleDownloadDataFileButton(event)" data-filename="Mii.mnms">
+                    Download .mnms
+                    </button>
+
+                    <button class="download-switch-charinfo" onclick="handleDownloadDataFileButton(event)" data-filename="Mii.charinfo">
+                    Download .charinfo
+                    </button>
+
+                    <button class="download-ffsd" onclick="handleDownloadDataFileButton(event)" data-filename="Mii.ffsd">
+                    Download .ffsd
+                    </button>
+                </li>
+                <li><a class="mii-instructions-link" target="_blank" href="https://miiinstructions.sticksweb.site/?data=">See instructions for how to recreate on the Switch</a></li>
+                <li>Base64 3DS/Wii U StoreData: <code class="ver3storedata code-block"></code></li>
+                <!-- TODO 2024-08-25: IMPLEMENT THIS ASAP IF YOU WANT WII MIIS TO SCAN ON 3DS SYSTEMS ..........
+                <li>
+                    <label>Always regenerate Mii ID: </label>
+                    <input type="checkbox" name="remake-mii-id">
+                    <div style="font-size: 10px;">Check this if the QR below doesn't scan on a 3DS. I apologize if it didn't! (Assigns CreateID to hash of data, always done for Switch/Studio input)</div>
+                </li>
+                -->
+                <li style="margin: 5px;" class="image-qr-container">Mii QR Code, Copying Enabled (hover to enlarge):<div style="text-align: center;"><img class="image-qr" alt="Mii QR Code, Copying Enabled (hover to enlarge):"></div>
+                </li>
+                </ul>
+            </div>
+            </details>
+        </li>
+
+
+
+        <li id="tutorial" class="hide-iframe-mode">
+            <div style="color: plum">Click "Mii input type" to see how you can import a Mii. Then, click Submit to begin.</div>
+        </li>
+        <li class="load-error" style="display: none">
+            Image below failed to load!! (You probably want to open the image in a new tab to see what went wrong)
+            <br>
+        </li>
+    </ul>
+    <hr class="hide-iframe-mode">
+    <h3>You better not play this.</h3>
+    <audio controls="" src="./lmao/run.mp3"/>
+    </div>
+    
+    <script src="./scripts/script.js"></script>
+    <!--<script src="https://cdn.jsdelivr.net/gh/criteo-forks/qr-scanner/qr-scanner.umd.min.js"></script>-->
+    <!-- async because it's not needed to RENDER the page
+    ... but will be needed laaateerrrr.... -->
+    <script async="" src="./scripts/qr-scan-handler.js"></script>
+    <script async="" src="./scripts/qr-scanner-worker.min.js"></script>
+    <!-- NOTE: qr-scan-handler actually does depend on qr-scanner AND sjcl both to work -->
+    <script async="" src="./scripts/gh-criteo-forks-qr-scanner-qr-scanner.umd.min.js"></script>
+    <!-- TODO: this sjcl (manually crafted) bundle could be smaller if it contained less deps -->
+    <!-- NOTE: both jses took manually from jsdelivr -->
+    <script async="" src="./scripts/sjcl-108-min-plus-codecBytes.js"></script>
+
+
+    <!-- scripts for data conversion -->
+    <!-- kaitai runtime -->
+    <!-- NOTE: all of the kaitais below need this BEFORE THEY LOAD!!!! -->
+    <script src="./scripts/KaitaiStream.min.js"></script>
+    <!-- scripts -->
+    <script async="" src="./scripts/2024-09-07-all-compiled-kaitai-structs.min.js"></script>
+    <!-- kaitai structs begin -->
+    <!--
+    <script async src="/assets/kaitai-structs/js/Gen2Wiiu3dsMiitomo.js?66f07010"></script>
+    <script async src="/assets/kaitai-structs/js/Gen3Studio.js?66f07011"></script>
+    <script async src="/assets/kaitai-structs/js/Gen1Wii.js?66f07010"></script>
+    <script async src="/assets/kaitai-structs/js/Gen3Switch.js?66f07012"></script>
+    <script async src="/assets/kaitai-structs/js/Gen2Wiiu3dsMiitomoNfpstoredataextention.js?66f07011"></script>
+    <script async src="/assets/kaitai-structs/js/Gen3Switchgame.js?66f07012"></script>
+    -->
+    <script async="" src="./scripts/2024-09-07-all-compiled-kaitai-structs.min.js"></script>
+    <!-- qr code encoder for data conversion -->
+
+    <script async="" src="./scripts/qr.min.js"></script>
+    <footer>We are not affiliated with any company or organization.</footer>
+</body>

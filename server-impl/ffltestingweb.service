@@ -1,0 +1,23 @@
+[Unit]
+Description=Haruka Classic
+After=network.target
+
+[Install]
+WantedBy=multi-user.target
+
+[Service]
+ExecReload=/usr/bin/screen -S minecraft-hclassic -X stuff \"reload^M\"
+
+ExecStart=/usr/bin/screen -DmS minecraft-hclassic /home/picelboi/HarukaSU/start.sh
+
+ExecStop=/usr/bin/screen -S minecraft-hclassic -X stuff \"save-all^M\"
+ExecStop=/bin/sleep 5
+ExecStop=/usr/bin/screen -S minecraft-hclassic -X stuff \"stop^M\"
+ExecStop=/bin/sleep 5
+
+WorkingDirectory=/home/picelboi/HarukaSU/
+
+User=picelboi
+Group=picelboi
+
+

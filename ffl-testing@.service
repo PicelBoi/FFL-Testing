@@ -1,0 +1,23 @@
+[Unit]
+Description=ffl-testing on port 5000
+
+Requires=ffl-testing@5000.socket
+After=ffl-testing@5000.socket
+
+#pure shit for now
+
+[Service]
+
+User=picelboi
+Type=simple
+# change this to wherever you run FFL-Testing
+# NOTE: please change this
+WorkingDirectory=/home/picelboi/FFL-Testing
+ExecStart=xvfb-run /home/picelboi/FFL-Testing/ffl_testing_2_debug64
+Environment=PORT=5000
+Environment=SERVER_ONLY=1
+# both of the above are assumed from LISTEN_FDS
+# TODO ADD SANDBOXING???
+
+[Install]
+WantedBy=multi-user.target

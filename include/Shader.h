@@ -1,41 +1,43 @@
 #pragma once
 
-#include <gpu/rio_Shader.h>
-#include <gpu/rio_TextureSampler.h>
+#include <IShader.h>
 
-#include <nn/ffl.h>
+#include <gpu/rio_TextureSampler.h>
 
 #if RIO_IS_CAFE
 #include <gx2/shaders.h>
 #endif // RIO_IS_CAFE
 
-class Shader
+class Shader : public IShader
 {
 public:
     Shader();
     ~Shader();
 
-    void initialize();
+    void initialize() override;
 
-    void bind(bool light_enable, FFLiCharInfo* charInfo);
+    void bind(bool light_enable, FFLiCharInfo* charInfo) override;
 
-    void setViewUniform(const rio::BaseMtx34f& model_mtx, const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj_mtx) const;
+    void bindBodyShader(bool light_enable, FFLiCharInfo* pCharInfo) override;
 
-    void applyAlphaTestEnable() const
+    void setViewUniform(const rio::BaseMtx34f& model_mtx, const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj_mtx) const override;
+    void setViewUniformBody(const rio::BaseMtx34f& model_mtx, const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj_mtx) const override;
+
+    void applyAlphaTestEnable() const override
     {
         applyAlphaTest(true, rio::Graphics::COMPARE_FUNC_GREATER, 0.0f);
     }
 
-    void applyAlphaTestDisable() const
+    void applyAlphaTestDisable() const override
     {
         applyAlphaTest(false, rio::Graphics::COMPARE_FUNC_ALWAYS, 0.0f);
     }
 
-    void applyAlphaTest(bool enable, rio::Graphics::CompareFunc func, f32 ref) const;
+    void applyAlphaTest(bool enable, rio::Graphics::CompareFunc func, f32 ref) const override;
 
     static void setCulling(FFLCullMode mode);
 
-private:
+protected:
     static void applyAlphaTestCallback_(void* p_obj, bool enable, rio::Graphics::CompareFunc func, f32 ref);
     void setShaderCallback_();
 
@@ -44,7 +46,7 @@ private:
     void setModulateMode_(FFLModulateMode mode);
     void setModulate_(const FFLModulateParam& modulateParam);
 
-    void setMaterial_(const FFLDrawParam& drawParam);
+    void setMaterial_(const FFLModulateType modulateType);
 
     void draw_(const FFLDrawParam& draw_param);
     static void drawCallback_(void* p_obj, const FFLDrawParam& draw_param);
@@ -52,10 +54,10 @@ private:
     void setMatrix_(const rio::BaseMtx44f& matrix);
     static void setMatrixCallback_(void* p_obj, const rio::BaseMtx44f& matrix);
 
-private:
+protected:
     enum VertexUniform
     {
-        VERTEX_UNIFORM_IT = 0,  // Inverse transpose of MV
+        VERTEX_UNIFORM_IT = 0,  // Inverse transpose / normal matrix
         VERTEX_UNIFORM_MV,
         VERTEX_UNIFORM_PROJ,
         VERTEX_UNIFORM_MAX
@@ -82,10 +84,34 @@ private:
         PIXEL_UNIFORM_MAX
     };
 
+    enum BodyVertexUniform
+    {
+        BODY_VERTEX_UNIFORM_PROJ = 0,
+        BODY_VERTEX_UNIFORM_VIEW,
+        BODY_VERTEX_UNIFORM_WORLD, // model matrix
+        BODY_VERTEX_UNIFORM_LIGHT_DIR,
+        BODY_VERTEX_UNIFORM_MAX
+    };
+
+    enum BodyPixelUniform
+    {
+        BODY_PIXEL_UNIFORM_BASE = 0,
+        BODY_PIXEL_UNIFORM_AMBIENT,
+        BODY_PIXEL_UNIFORM_DIFFUSE,
+        BODY_PIXEL_UNIFORM_SPECULAR,
+        BODY_PIXEL_UNIFORM_RIM,
+        BODY_PIXEL_UNIFORM_RIM_SP_POWER,
+        BODY_PIXEL_UNIFORM_SP_POWER,
+        BODY_PIXEL_UNIFORM_MAX
+    };
+
     rio::Shader             mShader;
+    rio::Shader             mBodyShader;
     s32                     mVertexUniformLocation[VERTEX_UNIFORM_MAX];
     s32                     mPixelUniformLocation[PIXEL_UNIFORM_MAX];
     s32                     mSamplerLocation;
+    s32                     mBodyVertexUniformLocation[BODY_VERTEX_UNIFORM_MAX];
+    s32                     mBodyPixelUniformLocation[BODY_PIXEL_UNIFORM_MAX];
     s32                     mAttributeLocation[FFL_ATTRIBUTE_BUFFER_TYPE_MAX];
 #if RIO_IS_CAFE
     GX2AttribStream         mAttribute[FFL_ATTRIBUTE_BUFFER_TYPE_MAX];
@@ -97,4 +123,5 @@ private:
     FFLShaderCallback       mCallback;
     rio::TextureSampler2D   mSampler;
     FFLiCharInfo*           mpCharInfo;
+    bool                    mLightEnableBody; // only used for body
 };

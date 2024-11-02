@@ -1,11 +1,13 @@
 #include <Model.h>
-#include <Shader.h>
+#include <IShader.h>
 
 #include <gfx/rio_Window.h>
 #include <gpu/rio_RenderState.h>
 #include <math/rio_Matrix.h>
 
-const bool cLightEnable = true;
+#ifdef ENABLE_BENCHMARK
+#include <chrono>
+#endif
 
 Model::Model()
     : mCharModelDesc()
@@ -14,6 +16,7 @@ Model::Model()
     , mMtxSRT(rio::Matrix34f::ident)
     , mpShader(nullptr)
     , mIsEnableSpecialDraw(false)
+    , mLightEnable(true)
     , mIsInitialized(false)
 {
     mpCharModel = new FFLCharModel();
@@ -53,15 +56,31 @@ void Model::drawOpa(const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj
 {
     setViewUniform_(mMtxSRT, view_mtx, proj_mtx);
 
+#ifdef ENABLE_BENCHMARK_2
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
     if (mIsEnableSpecialDraw)
         drawOpaSpecial_();
     else
         drawOpaNormal_();
+
+#ifdef ENABLE_BENCHMARK_2
+    end = std::chrono::high_resolution_clock::now();
+    long long int duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    RIO_LOG("FFLDrawOpa: %lld µs\n", duration);
+#endif
 }
 
 void Model::drawXlu(const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj_mtx)
 {
     setViewUniform_(mMtxSRT, view_mtx, proj_mtx);
+
+#ifdef ENABLE_BENCHMARK_2
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    start = std::chrono::high_resolution_clock::now();
+#endif
 
     if (mIsEnableSpecialDraw)
     {
@@ -72,12 +91,18 @@ void Model::drawXlu(const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj
     {
         drawXluNormal_();
     }
+
+#ifdef ENABLE_BENCHMARK_2
+    end = std::chrono::high_resolution_clock::now();
+    long long int duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    RIO_LOG("FFLDrawXlu: %lld µs\n", duration);
+#endif
 }
 
 void Model::setViewUniform_(const rio::BaseMtx34f& model_mtx, const rio::BaseMtx34f& view_mtx, const rio::BaseMtx44f& proj_mtx)
 {
     RIO_ASSERT(mpShader);
-    mpShader->bind(cLightEnable, &reinterpret_cast<FFLiCharModel*>(mpCharModel)->charInfo);
+    mpShader->bind(mLightEnable, &reinterpret_cast<FFLiCharModel*>(mpCharModel)->charInfo);
     mpShader->setViewUniform(model_mtx, view_mtx, proj_mtx);
 }
 
@@ -96,6 +121,8 @@ void Model::drawOpaNormal_()
 
     FFLDrawOpa(mpCharModel);
 }
+
+// NOTE: TODO?: YOU MAY WANT TO USE FFLDrawOpaWithCallback/FFLDrawXluWithCallback TO EXPLICITLY DECLARE WHICH SHADER TO USE / in a STATELESS manner
 
 void Model::drawOpaSpecial_()
 {
@@ -120,12 +147,16 @@ void Model::drawXluNormal_()
     render_state.setDepthFunc(rio::Graphics::COMPARE_FUNC_LESS);
     render_state.applyDepthAndStencilTest();
     mpShader->applyAlphaTestEnable();
+
+    // "interpolated alpha blending"
     render_state.setBlendEnable(true);
+    render_state.setBlendEquation(rio::Graphics::BLEND_FUNC_ADD);
     render_state.setBlendFactorSrcRGB(rio::Graphics::BLEND_MODE_SRC_ALPHA);
     render_state.setBlendFactorDstRGB(rio::Graphics::BLEND_MODE_ONE_MINUS_SRC_ALPHA);
-    render_state.setBlendFactorSrcAlpha(rio::Graphics::BLEND_MODE_SRC_ALPHA);
+
+    render_state.setBlendEquationAlpha(rio::Graphics::BLEND_FUNC_MAX);
+    render_state.setBlendFactorSrcAlpha(rio::Graphics::BLEND_MODE_ONE);
     render_state.setBlendFactorDstAlpha(rio::Graphics::BLEND_MODE_ONE);
-    render_state.setBlendEquation(rio::Graphics::BLEND_FUNC_ADD);
     render_state.setBlendConstantColor({ 0.0f, 0.0f, 0.0f, 0.0f });
     render_state.apply();
 
@@ -173,19 +204,45 @@ void Model::drawXluSpecial_()
 
 bool Model::initializeCpu_()
 {
+#ifdef ENABLE_BENCHMARK
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    start = std::chrono::high_resolution_clock::now();
+#endif
     mInitializeCpuResult = FFLInitCharModelCPUStep(mpCharModel, &mCharModelSource, &mCharModelDesc);
     if (mInitializeCpuResult != FFL_RESULT_OK) {
         RIO_LOG("FFLInitCharModelCPUStep returned: %i\n", mInitializeCpuResult);
         return false;
     }
+#ifdef ENABLE_BENCHMARK
+    end = std::chrono::high_resolution_clock::now();
+    long long int duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    RIO_LOG("FFLInitCharModelCPUStep: %lld µs\n", duration);
+#endif
     return true;
 }
 
-void Model::initializeGpu_(Shader& shader)
+void Model::initializeGpu_(IShader& shader)
 {
     mpShader = &shader;
     // disable light when rendering faceline textures
+#ifdef ENABLE_BENCHMARK
+    std::chrono::time_point<std::chrono::high_resolution_clock> start, end;
+    long long int duration;
+    start = std::chrono::high_resolution_clock::now();
+#endif
+
     mpShader->bind(false, &reinterpret_cast<FFLiCharModel*>(mpCharModel)->charInfo);
+#ifdef ENABLE_BENCHMARK2
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    RIO_LOG("mpShader->bind(): %lld µs\n", duration);
+    start = std::chrono::high_resolution_clock::now();
+#endif
     FFLInitCharModelGPUStep(mpCharModel);
+#ifdef ENABLE_BENCHMARK
+    end = std::chrono::high_resolution_clock::now();
+    duration = std::chrono::duration_cast<std::chrono::microseconds>(end - start).count();
+    RIO_LOG("FFLInitCharModelGPUStep: %lld µs\n", duration);
+#endif
     //rio::Window::instance()->makeContextCurrent();
 }

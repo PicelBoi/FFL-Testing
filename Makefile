@@ -43,6 +43,10 @@ ifneq (,$(findstring RIO_GLES, $(DEFS)))
 LIBS += glesv2
 endif
 
+ifneq (,$(findstring USE_SYSTEMD_SOCKET, $(DEFS)))
+LIBS += libsystemd
+endif
+
 # use pkg-config output as LDFLAGS and CFLAGS later on
 PKG_CONFIG_CFLAGS_CMD := $(TOOLCHAIN_PREFIX)pkg-config --cflags $(LIBS)
 $(info pkg-config cflags command: $(PKG_CONFIG_CFLAGS_CMD))
@@ -104,9 +108,13 @@ endif
 RIO_SRC := $(shell find rio/src -name '*.cpp')
 FFL_SRC := $(shell find ffl/src -name '*.cpp')
 
-SHADER ?= src/Shader.cpp
+# include both shaders
+SHADER ?= src/Shader.cpp src/ShaderSwitch.cpp src/ShaderMiitomo.cpp
 # Main source
-SRC := src/main.cpp src/Model.cpp src/RootTask.cpp $(SHADER)
+SRC := src/main.cpp src/Model.cpp src/RootTask.cpp $(SHADER) src/DataUtils.cpp
+ifeq (,$(findstring NO_GLTF, $(DEFS)))
+SRC += src/tinygltf_impl.cpp src/GLTFExportCallback.cpp
+endif
 
 # Object files
 NINTEXUTILS_OBJ := $(NINTEXUTILS_SRC:.c=.o)
